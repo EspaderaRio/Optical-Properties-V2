@@ -1223,8 +1223,179 @@
         }
     </style>
   <style>@view-transition { navigation: auto; }</style>
-  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
-  <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
+  <script>
+   // ===================== DATA SDK =====================
+window.dataSDK = {
+    SAVE_KEY: "presentation_save",
+    slides: [],
+    questions: [],
+
+    // Initialize with optional handler
+    init(handler) {
+        this.handler = handler || null;
+        this.loadState();
+        return Promise.resolve({ isOk: true });
+    },
+
+    // Save state to localStorage
+    saveState() {
+        const state = {
+            slides: this.slides,
+            questions: this.questions
+        };
+        localStorage.setItem(this.SAVE_KEY, JSON.stringify(state));
+    },
+
+    // Load state from localStorage
+    loadState() {
+        const raw = localStorage.getItem(this.SAVE_KEY);
+        if (raw) {
+            try {
+                const state = JSON.parse(raw);
+                this.slides = state.slides || [];
+                this.questions = state.questions || [];
+            } catch (e) {
+                console.error("Failed to parse saved state:", e);
+                this.slides = [];
+                this.questions = [];
+            }
+        }
+    },
+
+    // Add a study question
+    addQuestion(questionData) {
+        const newQuestion = {
+            id: Date.now().toString(36) + Math.random().toString(36).substr(2),
+            slide_number: questionData.slideNumber,
+            question: questionData.question,
+            answer: questionData.answer,
+            concept: questionData.concept || "Unknown",
+            timestamp: new Date().toISOString(),
+            difficulty: questionData.difficulty || "medium",
+            mastered: false
+        };
+        this.questions.push(newQuestion);
+        this.saveState();
+        return newQuestion;
+    },
+
+    // Toggle mastery
+    toggleMastery(questionId) {
+        const q = this.questions.find(q => q.id === questionId);
+        if (q) {
+            q.mastered = !q.mastered;
+            this.saveState();
+        }
+        return q;
+    },
+
+    // Remove a question
+    removeQuestion(questionId) {
+        this.questions = this.questions.filter(q => q.id !== questionId);
+        this.saveState();
+    },
+
+    // Get questions
+    getQuestions() {
+        return this.questions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    }
+};
+  </script>
+  <script>
+   // ===================== ELEMENT SDK =====================
+window.elementSDK = {
+    currentSlideIndex: 1,
+    totalSlides: 21,
+    isLoading: false,
+
+    // Slide navigation
+    nextSlide() {
+        if (this.currentSlideIndex < this.totalSlides) this.goToSlide(this.currentSlideIndex + 1);
+    },
+
+    previousSlide() {
+        if (this.currentSlideIndex > 1) this.goToSlide(this.currentSlideIndex - 1);
+    },
+
+    goToSlide(slideNumber) {
+        const prevSlide = document.getElementById(`slide-${this.currentSlideIndex}`);
+        if (prevSlide) prevSlide.classList.remove('active');
+
+        this.currentSlideIndex = slideNumber;
+
+        const newSlide = document.getElementById(`slide-${this.currentSlideIndex}`);
+        if (newSlide) newSlide.classList.add('active');
+
+        this.updateSlideCounter();
+        this.updateNavigationButtons();
+    },
+
+    updateSlideCounter() {
+        const progress = (this.currentSlideIndex / this.totalSlides) * 100;
+        document.getElementById('current-slide').textContent = this.currentSlideIndex;
+        document.getElementById('total-slides').textContent = this.totalSlides;
+
+        const fill = document.getElementById('progress-fill');
+        if (fill) fill.style.width = `${progress}%`;
+
+        const mobileFill = document.getElementById('mobile-progress-fill');
+        if (mobileFill) mobileFill.style.width = `${progress}%`;
+    },
+
+    updateNavigationButtons() {
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        if (prevBtn) prevBtn.disabled = this.currentSlideIndex === 1;
+        if (nextBtn) nextBtn.disabled = this.currentSlideIndex === this.totalSlides;
+    },
+
+    // Toggle notes panel
+    toggleNotes() {
+        const panel = document.getElementById('notes-panel');
+        if (panel) panel.classList.toggle('open');
+    },
+
+    // Show toast notifications
+    showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'error' ? '#f44336' : type === 'success' ? '#4caf50' : '#2196f3'};
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            z-index: 10000;
+            font-weight: 500;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    },
+
+    // Animate light rays or other interactions
+    animateElement(selector, animationName, duration = '2s', iteration = 'infinite') {
+        const el = document.querySelectorAll(selector);
+        el.forEach(e => {
+            e.style.animation = 'none';
+            setTimeout(() => {
+                e.style.animation = `${animationName} ${duration} ease-in-out ${iteration}`;
+            }, 100);
+        });
+    },
+
+    resetAnimation(selector) {
+        const el = document.querySelectorAll(selector);
+        el.forEach(e => e.style.animation = 'none');
+    }
+};
+  </script>
   <script src="tailwindcss.js" type="text/javascript"></script>
  </head>
  <body>
